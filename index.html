@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recesos · Acceso</title>
+<style>
+  :root{
+    --bg:#0b1120; --panel:#111827; --card:#1e293b;
+    --accent:#38bdf8; --green:#22c55e; --red:#ef4444;
+    --text:#f1f5f9; --muted:#94a3b8; --border:#334155;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
+  header{background:var(--panel);border-bottom:1px solid var(--border);padding:14px 20px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand-icon{width:42px;height:42px;background:rgba(56,189,248,.15);border-radius:10px;display:grid;place-items:center;font-size:1.3rem}
+  .brand h1{font-size:1.15rem}
+  .brand span{display:block;font-size:.75rem;color:var(--muted)}
+  .badge{padding:6px 12px;border-radius:999px;font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+  .badge.view{background:rgba(148,163,184,.15);color:var(--muted)}
+  .badge.edit{background:rgba(34,197,94,.18);color:#4ade80}
+  button{font-family:inherit;font-weight:600;border:none;border-radius:10px;cursor:pointer;padding:10px 16px;font-size:.9rem;display:inline-flex;align-items:center;gap:6px;transition:.15s}
+  button:active{transform:scale(.96)}
+  .btn-primary{background:var(--accent);color:#0f172a}
+  .btn-primary:hover{background:#0ea5e9}
+  .btn-success{background:var(--green);color:#052e16}
+  .btn-success:hover{background:#16a34a}
+  .btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}
+  .btn-ghost:hover{background:rgba(148,163,184,.1);color:var(--text)}
+  main{flex:1;padding:24px;max-width:1400px;margin:0 auto;width:100%}
+  .hero{text-align:center;padding:36px 20px 28px}
+  .hero h2{font-size:clamp(1.6rem,4vw,2.4rem);margin-bottom:8px}
+  .hero p{color:var(--muted);max-width:640px;margin:0 auto 22px}
+  .hero-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:28px 0}
+  .stat{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 18px}
+  .stat-value{font-size:1.7rem;font-weight:800;font-variant-numeric:tabular-nums}
+  .stat-label{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+  .stat.running .stat-value{color:var(--green)}
+  .stat.expired .stat-value{color:var(--red)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;margin-top:8px}
+  .card{background:var(--card);border:2px solid var(--border);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:8px}
+  .card.running{border-color:var(--green)}
+  .card.expired{background:#7f1d1d;border-color:var(--red);animation:pulse 1.2s ease-in-out infinite}
+  @keyframes pulse{0%,100%{box-shadow:0 0 14px rgba(239,68,68,.4)}50%{box-shadow:0 0 30px rgba(239,68,68,.75)}}
+  .card .name{font-weight:700;font-size:1.05rem}
+  .card .time{font-size:2.2rem;font-weight:800;font-variant-numeric:tabular-nums;text-align:center;margin:6px 0}
+  .card.running .time{color:var(--green)}
+  .card.expired .time{color:#fecaca}
+  .card .meta{font-size:.78rem;color:var(--muted);text-align:center}
+  .empty{grid-column:1/-1;text-align:center;padding:50px 20px;color:var(--muted)}
+  #modal{display:none;position:fixed;inset:0;background:rgba(2,6,23,.82);z-index:1000;align-items:center;justify-content:center;padding:20px}
+  #modal.show{display:flex}
+  .modal-box{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:26px;max-width:380px;width:100%;text-align:center}
+  .modal-box h3{margin-bottom:6px;font-size:1.2rem}
+  .modal-box p{color:var(--muted);font-size:.85rem;margin-bottom:16px}
+  .modal-box input{width:100%;padding:12px;border-radius:10px;background:rgba(15,23,42,.7);border:1px solid var(--border);color:var(--text);font-size:1.1rem;text-align:center;outline:none;letter-spacing:.3em}
+  .modal-box input:focus{border-color:var(--accent)}
+  .modal-box .row{display:flex;gap:10px;margin-top:16px}
+  .modal-box .row button{flex:1;justify-content:center}
+  .error{color:var(--red);font-size:.85rem;margin-top:10px;min-height:18px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-icon">⏱</div>
+    <div>
+      <h1>Portal de Recesos</h1>
+      <span>Visualización pública · Edición con clave</span>
+    </div>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <span class="badge view" id="mode-badge">👁 Solo lectura</span>
+    <button class="btn-ghost" id="btn-toggle">🔒 Modo edición</button>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <h2>Panel de Recesos de Operadores</h2>
+    <p>Cualquiera con el enlace puede ver el estado de los recesos en tiempo real. Para modificar los tiempos o iniciar/pausar recesos se requiere la clave de edición.</p>
+    <div class="hero-actions">
+      <a href="recesos.html" class="btn-primary" style="text-decoration:none;padding:12px 22px">Abrir panel completo →</a>
+    </div>
+  </section>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-value" id="s-total">0</div><div class="stat-label">Total</div></div>
+    <div class="stat running"><div class="stat-value" id="s-running">0</div><div class="stat-label">En receso</div></div>
+    <div class="stat expired"><div class="stat-value" id="s-expired">0</div><div class="stat-label">Vencidos</div></div>
+    <div class="stat"><div class="stat-value" id="s-history">0</div><div class="stat-label">Historial</div></div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+</main>
+
+<div id="modal">
+  <div class="modal-box">
+    <h3>🔒 Clave de edición</h3>
+    <p>Introduce la contraseña para desbloquear las modificaciones.</p>
+    <input type="password" id="pwd" placeholder="••••" maxlength="8" autocomplete="off">
+    <div class="error" id="pwd-error"></div>
+    <div class="row">
+      <button class="btn-ghost" id="btn-cancel">Cancelar</button>
+      <button class="btn-success" id="btn-ok">Desbloquear</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const SUPABASE_URL = 'https://vnsmjfumlizeexqgddii.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzbm1qZnVtbGl6ZWV4cWdkZGlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3Nzk3NjcsImV4cCI6MjEwNTM1NTc2N30.wW-znjQD_5eN62Rtt2NfdX7AIlN6xeXpaTLNDr734Y4';
+  const EDIT_EMAIL = 'admin@recesos.local';
+
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let operators = [];
+  let history = [];
+  let channel = null;
+  let isEditMode = false;
+
+  function formatTime(sec){
+    sec = Math.max(0, Math.floor(sec));
+    const m = Math.floor(sec/60);
+    const s = sec % 60;
+    return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  }
+  function formatClock(ts){
+    if(!ts) return '—';
+    return new Date(ts).toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  }
+  function getRemaining(op){
+    if(op.status === 'running' && op.end_at){
+      return Math.max(0, Math.ceil((new Date(op.end_at).getTime() - Date.now())/1000));
+    }
+    return Math.max(0, op.remaining || 0);
+  }
+  function escapeHtml(str){
+    const d = document.createElement('div');
+    d.textContent = String(str ?? '');
+    return d.innerHTML;
+  }
+
+  function renderMode(){
+    const badge = document.getElementById('mode-badge');
+    const btn = document.getElementById('btn-toggle');
+    if(isEditMode){
+      badge.className = 'badge edit';
+      badge.textContent = '✏️ Modo edición';
+      btn.textContent = '🔓 Bloquear';
+    }else{
+      badge.className = 'badge view';
+      badge.textContent = '👁 Solo lectura';
+      btn.textContent = '🔒 Modo edición';
+    }
+  }
+
+  function render(){
+    operators.forEach(op => {
+      if(op.status === 'running' && op.end_at){
+        op.remaining = getRemaining(op);
+      }
+    });
+    document.getElementById('s-total').textContent = operators.length;
+    document.getElementById('s-running').textContent = operators.filter(o=>o.status==='running').length;
+    document.getElementById('s-expired').textContent = operators.filter(o=>o.status==='expired').length;
+    document.getElementById('s-history').textContent = history.length;
+
+    const grid = document.getElementById('grid');
+    grid.innerHTML = '';
+    if(operators.length === 0){
+      grid.innerHTML = `<div class="empty"><p>No hay operadores registrados.</p></div>`;
+      return;
+    }
+    operators.forEach(op => {
+      const rem = getRemaining(op);
+      const card = document.createElement('div');
+      card.className = 'card';
+      if(op.status === 'running') card.classList.add('running');
+      if(op.status === 'expired') card.classList.add('expired');
+      const statusText = op.status === 'running' ? 'En receso'
+                       : op.status === 'expired' ? '¡Vencido!'
+                       : 'Listo';
+      card.innerHTML = `
+        <div class="name">${escapeHtml(op.name || 'Operador')}</div>
+        <div class="time">${formatTime(op.status==='expired'?0:rem)}</div>
+        <div class="meta">${statusText}${op.end_at ? ' · termina ' + formatClock(op.end_at) : ''}</div>
+      `;
+      grid.appendChild(card);
+    });
+  }
+
+  document.getElementById('btn-toggle').addEventListener('click', async () => {
+    if(isEditMode){
+      await supabase.auth.signOut();
+      isEditMode = false;
+      renderMode();
+      return;
+    }
+    document.getElementById('pwd').value = '';
+    document.getElementById('pwd-error').textContent = '';
+    document.getElementById('modal').classList.add('show');
+    setTimeout(()=>document.getElementById('pwd').focus(), 50);
+  });
+
+  document.getElementById('btn-cancel').addEventListener('click', () => {
+    document.getElementById('modal').classList.remove('show');
+  });
+
+  async function tryUnlock(){
+    const pwd = document.getElementById('pwd').value.trim();
+    const err = document.getElementById('pwd-error');
+    err.textContent = 'Verificando...';
+    const { error } = await supabase.auth.signInWithPassword({
+      email: EDIT_EMAIL,
+      password: pwd
+    });
+    if(error){
+      err.textContent = 'Contraseña incorrecta.';
+      document.getElementById('pwd').value = '';
+      return;
+    }
+    isEditMode = true;
+    renderMode();
+    document.getElementById('modal').classList.remove('show');
+  }
+  document.getElementById('btn-ok').addEventListener('click', tryUnlock);
+  document.getElementById('pwd').addEventListener('keydown', e => {
+    if(e.key === 'Enter') tryUnlock();
+  });
+
+  async function loadInitial(){
+    const [opsRes, histRes] = await Promise.all([
+      supabase.from('operators').select('*').order('id'),
+      supabase.from('history').select('*').order('ended_at', { ascending: false }).limit(200)
+    ]);
+    operators = opsRes.data || [];
+    history = histRes.data || [];
+    render();
+  }
+
+  function subscribeRealtime(){
+    if(channel) supabase.removeChannel(channel);
+    channel = supabase
+      .channel('recesos-portal')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'operators' }, payload => {
+        const { eventType, new: newRow, old: oldRow } = payload;
+        if(eventType === 'INSERT') operators.push(newRow);
+        else if(eventType === 'UPDATE'){
+          const i = operators.findIndex(o => o.id === newRow.id);
+          if(i >= 0) operators[i] = newRow;
+          else operators.push(newRow);
+        }
+        else if(eventType === 'DELETE'){
+          operators = operators.filter(o => o.id !== oldRow.id);
+        }
+        render();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'history' }, payload => {
+        const { eventType, new: newRow } = payload;
+        if(eventType === 'INSERT'){ history.unshift(newRow); render(); }
+      })
+      .subscribe();
+  }
+
+  setInterval(render, 1000);
+
+  (async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    isEditMode = !!session;
+    renderMode();
+    await loadInitial();
+    subscribeRealtime();
+  })();
+
+  supabase.auth.onAuthStateChange((_event, session) => {
+    isEditMode = !!session;
+    renderMode();
+  });
+</script>
+</body>
+</html>
