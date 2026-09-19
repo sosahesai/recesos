@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Panel de Control Remoto · Recesos</title>
+  <style>
+    :root {
+      --bg: #0b1120;
+      --panel: #111827;
+      --card: #1e293b;
+      --card-expired: #7f1d1d;
+      --accent: #38bdf8;
+      --accent-dim: rgba(56, 189, 248, 0.15);
+      --green: #22c55e;
+      --green-dim: rgba(34, 197, 94, 0.18);
+      --red: #ef4444;
+      --red-dim: rgba(239, 68, 68, 0.2);
+      --yellow: #eab308;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --border: #334155;
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .topbar {
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-icon {
+      width: 40px; height: 40px;
+      background: var(--accent-dim);
+      border-radius: 10px;
+      display: grid; place-items: center;
+      font-size: 1.3rem;
+    }
+    .brand h1 { font-size: 1.15rem; font-weight: 700; letter-spacing: -0.02em; }
+    .brand span { display: block; font-size: 0.75rem; color: var(--muted); font-weight: 500; }
+    .top-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .global-time {
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 6px 10px;
+      font-size: 0.9rem;
+    }
+    .global-time input {
+      width: 48px; background: transparent; border: none;
+      color: var(--text); font-size: 1rem; font-weight: 700;
+      text-align: center; outline: none;
+    }
+    .global-time label { color: var(--muted); font-size: 0.8rem; }
+    button {
+      font-family: inherit; font-weight: 600; border: none;
+      border-radius: 10px; cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      display: inline-flex; align-items: center; justify-content: center;
+      gap: 6px; white-space: nowrap;
+    }
+    button:active { transform: scale(0.96); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+    .btn { padding: 10px 16px; font-size: 0.9rem; }
+    .btn-primary { background: var(--accent); color: #0f172a; }
+    .btn-primary:hover:not(:disabled) { background: #0ea5e9; }
+    .btn-success { background: var(--green); color: #052e16; }
+    .btn-success:hover:not(:disabled) { background: #16a34a; }
+    .btn-warning { background: var(--yellow); color: #422006; }
+    .btn-warning:hover:not(:disabled) { background: #ca8a04; }
+    .btn-danger { background: var(--red); color: white; }
+    .btn-danger:hover:not(:disabled) { background: #dc2626; }
+    .btn-ghost {
+      background: transparent; color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover:not(:disabled) {
+      background: rgba(148, 163, 184, 0.1); color: var(--text);
+    }
+    .btn-icon {
+      width: 36px; height: 36px; padding: 0;
+      border-radius: 8px; background: transparent;
+      color: var(--muted); font-size: 1rem;
+    }
+    .btn-icon:hover { background: rgba(239, 68, 68, 0.15); color: var(--red); }
+    .main { flex: 1; padding: 20px; max-width: 1600px; margin: 0 auto; width: 100%; }
+    .stats-bar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+    .stat {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 12px 18px;
+      min-width: 110px; flex: 1;
+    }
+    .stat-value { font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .stat-label {
+      font-size: 0.75rem; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px;
+    }
+    .stat.running .stat-value { color: var(--green); }
+    .stat.expired .stat-value { color: var(--red); }
+    .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+    .tab {
+      padding: 8px 18px; border-radius: 999px;
+      background: transparent; border: 1px solid var(--border);
+      color: var(--muted); font-size: 0.9rem; font-weight: 600; cursor: pointer;
+    }
+    .tab.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+    .card {
+      background: var(--card); border: 2px solid var(--border);
+      border-radius: var(--radius); padding: 16px;
+      display: flex; flex-direction: column; gap: 12px;
+      transition: border-color 0.25s, background 0.25s, box-shadow 0.25s;
+    }
+    .card.running { border-color: var(--green); box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.2); }
+    .card.expired {
+      background: var(--card-expired);
+      border-color: var(--red);
+      box-shadow: 0 0 28px rgba(239, 68, 68, 0.5);
+      animation: pulse 1.1s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 16px rgba(239, 68, 68, 0.4); }
+      50% { box-shadow: 0 0 36px rgba(239, 68, 68, 0.75); }
+    }
+    .card-top { display: flex; align-items: center; gap: 8px; }
+    .name-input {
+      flex: 1;
+      background: rgba(15, 23, 42, 0.55);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text); font-size: 1.15rem; font-weight: 700;
+      padding: 9px 12px; outline: none;
+    }
+    .name-input:focus { border-color: var(--accent); }
+    .name-input::placeholder { color: var(--muted); font-weight: 400; }
+    .time-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .time-row label { color: var(--muted); font-size: 0.8rem; }
+    .time-input {
+      width: 56px;
+      background: rgba(15, 23, 42, 0.55);
+      border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text);
+      font-size: 1rem; font-weight: 700;
+      text-align: center; padding: 7px 4px; outline: none;
+    }
+    .time-input:focus { border-color: var(--accent); }
+    .clock-input {
+      width: 110px;
+      background: rgba(15, 23, 42, 0.55);
+      border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text);
+      font-size: 1rem; font-weight: 700;
+      text-align: center; padding: 7px 6px; outline: none;
+    }
+    .clock-input:focus { border-color: var(--accent); }
+    .clock-input::-webkit-calendar-picker-indicator { filter: invert(0.8); cursor: pointer; }
+    .display {
+      font-variant-numeric: tabular-nums;
+      font-size: 2.8rem; font-weight: 800;
+      letter-spacing: 0.03em; text-align: center;
+      padding: 6px 0 2px; line-height: 1;
+    }
+    .card.running .display { color: var(--green); }
+    .card.expired .display { color: #fecaca; font-size: 2.4rem; }
+    .end-time { text-align: center; font-size: 0.8rem; color: var(--muted); }
+    .card.running .end-time { color: #86efac; }
+    .card.expired .end-time { color: #fca5a5; }
+    .badge {
+      font-size: 0.7rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.07em;
+      padding: 4px 10px; border-radius: 999px; align-self: flex-start;
+    }
+    .badge-idle { background: rgba(148,163,184,0.15); color: var(--muted); }
+    .badge-running { background: var(--green-dim); color: #4ade80; }
+    .badge-expired { background: var(--red-dim); color: #fca5a5; }
+    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .actions .btn { padding: 12px 10px; font-size: 0.95rem; }
+    .history-panel { display: none; }
+    .history-panel.visible { display: block; }
+    .history-list { display: flex; flex-direction: column; gap: 10px; }
+    .history-item {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px 16px;
+      display: flex; justify-content: space-between;
+      align-items: center; gap: 12px; flex-wrap: wrap;
+    }
+    .history-item .hi-name { font-weight: 700; font-size: 1.05rem; }
+    .history-item .hi-meta { font-size: 0.85rem; color: var(--muted); }
+    .history-item .hi-duration { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--accent); }
+    .empty { grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: var(--muted); }
+    .empty p { margin-bottom: 18px; font-size: 1.1rem; }
+    #overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(127, 29, 29, 0.94);
+      z-index: 9999;
+      flex-direction: column; align-items: center; justify-content: center;
+      gap: 18px; padding: 24px; text-align: center;
+      animation: fadeIn 0.2s ease;
+    }
+    #overlay.show { display: flex; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    #overlay h2 {
+      font-size: clamp(2rem, 7vw, 3.8rem);
+      font-weight: 900; color: #fecaca;
+      text-shadow: 0 0 40px rgba(239, 68, 68, 0.7);
+      line-height: 1.1;
+    }
+    #overlay .names {
+      font-size: clamp(1.15rem, 4vw, 1.9rem);
+      font-weight: 700; color: white; max-width: 92%;
+    }
+    #overlay .hint { color: #fca5a5; font-size: 0.95rem; }
+    #overlay .btn { margin-top: 8px; padding: 16px 36px; font-size: 1.15rem; }
+    .footer {
+      text-align: center; padding: 12px; font-size: 0.75rem;
+      color: var(--muted); border-top: 1px solid var(--border);
+    }
+    @media (max-width: 520px) {
+      .display { font-size: 2.3rem; }
+      .topbar { padding: 10px 14px; }
+      .main { padding: 14px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-icon">🎛</div>
+      <div>
+        <h1>Panel de Control Remoto</h1>
+        <span>Recesos de operadores · Datos persistentes</span>
+      </div>
+    </div>
+    <div class="top-actions">
+      <a href="index.html" class="btn btn-primary" id="btn-inicio" style="text-decoration:none;">INICIO</a>
+      <div class="global-time" title="Tiempo por defecto para nuevos operadores">
+        <label>Default</label>
+        <input type="number" id="default-min" min="0" max="999" value="15">
+        <label>min</label>
+        <input type="number" id="default-sec" min="0" max="59" value="0">
+        <label>seg</label>
+      </div>
+      <button class="btn btn-primary" id="btn-add" type="button">＋ Agregar</button>
+      <button class="btn btn-ghost" id="btn-start-all" type="button">▶ Todos</button>
+      <button class="btn btn-ghost" id="btn-reset-all" type="button">↺ Todos</button>
+      <button class="btn btn-ghost" id="btn-notif" type="button" title="Activar notificaciones del navegador">🔔 Notificaciones</button>
+      <button class="btn btn-danger" id="btn-clear" type="button" title="Borra operadores e historial">🗑 Limpiar todo</button>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="stats-bar">
+      <div class="stat"><div class="stat-value" id="stat-total">0</div><div class="stat-label">Total</div></div>
+      <div class="stat running"><div class="stat-value" id="stat-running">0</div><div class="stat-label">En receso</div></div>
+      <div class="stat expired"><div class="stat-value" id="stat-expired">0</div><div class="stat-label">Vencidos</div></div>
+      <div class="stat"><div class="stat-value" id="stat-history">0</div><div class="stat-label">Historial</div></div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="operators" type="button">Operadores</button>
+      <button class="tab" data-tab="history" type="button">Historial</button>
+    </div>
+
+    <div id="panel-operators"><div class="grid" id="grid"></div></div>
+    <div id="panel-history" class="history-panel"><div class="history-list" id="history-list"></div></div>
+  </main>
+
+  <footer class="footer">
+    Todo se guarda automáticamente. Al salir y volver, los timers continúan con el tiempo real restante.
+    Solo se borra al pulsar «Limpiar todo».
+  </footer>
+
+  <div id="overlay" role="alert" aria-live="assertive">
+    <h2>¡TIEMPO VENCIDO!</h2>
+    <div class="names" id="overlay-names"></div>
+    <p class="hint">Presiona el botón para silenciar la alarma</p>
+    <button class="btn btn-danger" id="btn-ack" type="button">Entendido · Silenciar</button>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'panel_recesos_v2';
+    let operators = [];
+    let history = [];
+    let nextId = 1;
+    let alarmPlaying = false;
+    let audioCtx = null;
+    let alarmInterval = null;
+    let tickInterval = null;
+
+    // ---- BLOQUEO DE EDICIÓN ----
+    const EDIT_FLAG = 'recesos_edit_unlocked';
+    function isEditing(){
+      return sessionStorage.getItem(EDIT_FLAG) === '1';
+    }
+    if(!isEditing()){
+      window.location.replace('index.html');
+    }
+
+    // ---------- AUDIO ----------
+    function initAudio() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+    function startAlarm() {
+      if (alarmPlaying) return;
+      initAudio();
+      alarmPlaying = true;
+      let step = 0;
+      const beep = () => {
+        if (!alarmPlaying) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'square';
+        osc.frequency.value = step % 2 === 0 ? 880 : 660;
+        gain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.28, audioCtx.currentTime + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.28);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.3);
+        step++;
+      };
+      beep();
+      alarmInterval = setInterval(beep, 320);
+    }
+    function stopAlarm() {
+      alarmPlaying = false;
+      if (alarmInterval) { clearInterval(alarmInterval); alarmInterval = null; }
+    }
+
+    // ---------- NOTIFICACIONES ----------
+    const notifiedIds = new Set();
+    function updateNotifButton() {
+      const btn = document.getElementById('btn-notif');
+      if (!btn) return;
+      if (!('Notification' in window)) {
+        btn.textContent = '🔔 No soportado';
+        btn.disabled = true;
+        return;
+      }
+      const perm = Notification.permission;
+      if (perm === 'granted') {
+        btn.textContent = '🔔 Activas';
+        btn.style.borderColor = 'var(--green)';
+        btn.style.color = 'var(--green)';
+      } else if (perm === 'denied') {
+        btn.textContent = '🔔 Bloqueadas';
+        btn.style.borderColor = 'var(--red)';
+        btn.style.color = 'var(--red)';
+      } else {
+        btn.textContent = '🔔 Notificaciones';
+        btn.style.borderColor = '';
+        btn.style.color = '';
+      }
+    }
+    async function requestNotificationPermission() {
+      if (!('Notification' in window)) { alert('Este navegador no soporta notificaciones.'); return false; }
+      if (Notification.permission === 'granted') { updateNotifButton(); return true; }
+      if (Notification.permission === 'denied') {
+        alert('Las notificaciones están bloqueadas.\nActívalas en la configuración del navegador para este sitio.');
+        updateNotifButton();
+        return false;
+      }
+      try {
+        const result = await Notification.requestPermission();
+        updateNotifButton();
+        return result === 'granted';
+      } catch (e) { updateNotifButton(); return false; }
+    }
+    function showExpiryNotification(op) {
+      if (!('Notification' in window) || Notification.permission !== 'granted') return;
+      const key = op.id + '-' + (op.startedAt || op.id);
+      if (notifiedIds.has(key)) return;
+      notifiedIds.add(key);
+      const name = op.name || 'Operador';
+      try {
+        const n = new Notification('¡Tiempo de receso vencido!', {
+          body: `${name} — el tiempo de descanso ha terminado.`,
+          tag: 'receso-' + op.id,
+          requireInteraction: true,
+          silent: false
+        });
+        n.onclick = () => { window.focus(); n.close(); };
+        setTimeout(() => n.close(), 30000);
+      } catch (e) { console.warn('No se pudo mostrar notificación:', e); }
+    }
+    function notifyAllExpired() {
+      operators.forEach(op => { if (op.status === 'expired') showExpiryNotification(op); });
+    }
+
+    // ---------- HELPERS ----------
+    function formatTime(sec) {
+      sec = Math.max(0, Math.floor(sec));
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+    function formatClock(ts) {
+      if (!ts) return '—';
+      const d = new Date(ts);
+      return d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+    function formatDateTime(ts) {
+      if (!ts) return '—';
+      const d = new Date(ts);
+      return d.toLocaleString('es', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      });
+    }
+    function getDefaultSeconds() {
+      const min = Math.max(0, parseInt(document.getElementById('default-min').value, 10) || 0);
+      let sec = Math.max(0, parseInt(document.getElementById('default-sec').value, 10) || 0);
+      if (sec > 59) sec = 59;
+      return min * 60 + sec;
+    }
+    function escapeHtml(str) {
+      const d = document.createElement('div');
+      d.textContent = str;
+      return d.innerHTML;
+    }
+    function getRemaining(op) {
+      if (op.status === 'running' && op.endAt) {
+        return Math.max(0, Math.ceil((op.endAt - Date.now()) / 1000));
+      }
+      return Math.max(0, op.remaining || 0);
+    }
+
+    // ---------- PERSISTENCE ----------
+    function save() {
+      operators.forEach(op => {
+        if (op.status === 'running' && op.endAt) op.remaining = getRemaining(op);
+      });
+      const data = {
+        nextId,
+        operators: operators.map(o => ({
+          id: o.id, name: o.name, totalSeconds: o.totalSeconds,
+          remaining: o.remaining, status: o.status,
+          endAt: o.endAt || null, startedAt: o.startedAt || null,
+          targetTime: o.targetTime || ''
+        })),
+        history,
+        defaultMin: document.getElementById('default-min').value,
+        defaultSec: document.getElementById('default-sec').value
+      };
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch (e) {}
+    }
+    function load() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return false;
+        const data = JSON.parse(raw);
+        nextId = data.nextId || 1;
+        history = data.history || [];
+        operators = (data.operators || []).map(o => {
+          const op = {
+            id: o.id, name: o.name,
+            totalSeconds: o.totalSeconds || 0,
+            remaining: o.remaining || 0,
+            status: o.status || 'idle',
+            endAt: o.endAt || null,
+            startedAt: o.startedAt || null,
+            targetTime: o.targetTime || ''
+          };
+          if (op.status === 'running' && op.endAt) {
+            const rem = Math.ceil((op.endAt - Date.now()) / 1000);
+            if (rem <= 0) {
+              op.remaining = 0; op.status = 'expired'; op.endAt = null;
+              addToHistory(op, true);
+            } else { op.remaining = rem; }
+          } else if (op.status === 'expired') {
+            op.remaining = 0; op.endAt = null;
+          }
+          return op;
+        });
+        if (data.defaultMin != null) document.getElementById('default-min').value = data.defaultMin;
+        if (data.defaultSec != null) document.getElementById('default-sec').value = data.defaultSec;
+        return true;
+      } catch (e) { return false; }
+    }
+    function addToHistory(op, silent) {
+      const last = history[0];
+      if (last && last.operatorId === op.id && Date.now() - last.endedAt < 5000) return;
+      history.unshift({
+        id: Date.now() + Math.random(),
+        operatorId: op.id,
+        name: op.name || 'Sin nombre',
+        totalSeconds: op.totalSeconds,
+        startedAt: op.startedAt || null,
+        endedAt: Date.now()
+      });
+      if (history.length > 200) history = history.slice(0, 200);
+      if (!silent) save();
+    }
+
+    // ---------- TICK ----------
+    function startGlobalTick() {
+      if (tickInterval) clearInterval(tickInterval);
+      tickInterval = setInterval(() => {
+        let changed = false;
+        operators.forEach(op => {
+          if (op.status === 'running' && op.endAt) {
+            const rem = getRemaining(op);
+            op.remaining = rem;
+            if (rem <= 0) {
+              op.remaining = 0; op.status = 'expired'; op.endAt = null;
+              addToHistory(op, true);
+              changed = true;
+            }
+          }
+        });
+        if (changed) {
+          render();
+        } else {
+          operators.forEach(op => {
+            if (op.status === 'running') {
+              const card = document.querySelector(`.name-input[data-id="${op.id}"]`)?.closest('.card');
+              if (card) {
+                const display = card.querySelector('.display');
+                const endEl = card.querySelector('.end-time');
+                if (display) display.textContent = formatTime(op.remaining);
+                if (endEl && op.endAt) endEl.textContent = 'Termina a las ' + formatClock(op.endAt);
+              }
+            }
+          });
+          updateOverlay();
+        }
+        if (Date.now() % 10000 < 1100) save();
+      }, 1000);
+    }
+
+    // ---------- RENDER ----------
+    function render() {
+      document.getElementById('stat-total').textContent = operators.length;
+      document.getElementById('stat-running').textContent = operators.filter(o => o.status === 'running').length;
+      document.getElementById('stat-expired').textContent = operators.filter(o => o.status === 'expired').length;
+      document.getElementById('stat-history').textContent = history.length;
+      renderOperators();
+      renderHistory();
+      updateOverlay();
+      save();
+    }
+    function renderOperators() {
+      const grid = document.getElementById('grid');
+      grid.innerHTML = '';
+      if (operators.length === 0) {
+        grid.innerHTML = `<div class="empty"><p>No hay operadores. Agrega el primero.</p>
+          <button class="btn btn-primary" type="button" onclick="addOperator()">＋ Agregar operador</button></div>`;
+        return;
+      }
+      operators.forEach(op => {
+        const rem = getRemaining(op);
+        if (op.status === 'running') op.remaining = rem;
+        const card = document.createElement('div');
+        card.className = 'card';
+        if (op.status === 'running') card.classList.add('running');
+        if (op.status === 'expired') card.classList.add('expired');
+        const badgeClass = op.status === 'running' ? 'badge-running'
+                         : op.status === 'expired' ? 'badge-expired' : 'badge-idle';
+        const badgeText = op.status === 'running' ? 'En receso'
+                        : op.status === 'expired' ? '¡Vencido!' : 'Listo';
+        const displaySec = op.status === 'expired' ? 0 : rem;
+        const showMin = Math.floor(displaySec / 60);
+        const showSec = displaySec % 60;
+        card.innerHTML = `
+          <div class="card-top">
+            <input class="name-input" type="text" value="${escapeHtml(op.name)}"
+                   placeholder="Nombre" data-id="${op.id}" data-field="name">
+            <button class="btn-icon" type="button" title="Eliminar" data-id="${op.id}" data-action="delete">✕</button>
+          </div>
+          <div class="time-row">
+            <label>Tiempo</label>
+            <input class="time-input" type="number" min="0" max="999" value="${showMin}"
+                   data-id="${op.id}" data-field="minutes" title="Minutos">
+            <label>min</label>
+            <input class="time-input" type="number" min="0" max="59" value="${showSec}"
+                   data-id="${op.id}" data-field="seconds" title="Segundos">
+            <label>seg</label>
+          </div>
+          <div class="time-row">
+            <label>Hora inicio</label>
+            <input class="clock-input" type="time" value="${op.targetTime || ''}"
+                   data-id="${op.id}" data-field="targetTime" title="Ej: 22:12">
+            <label style="font-size:0.75rem;color:var(--muted)">(opcional)</label>
+          </div>
+          <div class="display">${formatTime(displaySec)}</div>
+          <div class="end-time">
+            ${op.status === 'running' && op.endAt
+              ? 'Termina a las ' + formatClock(op.endAt)
+              : op.status === 'expired'
+                ? 'Tiempo agotado'
+                : (op.targetTime
+                    ? 'Inicia a las ' + op.targetTime + ' · dura ' + formatTime(op.totalSeconds || 0)
+                    : 'Duración total: ' + formatTime(op.totalSeconds))}
+          </div>
+          <span class="badge ${badgeClass}">${badgeText}</span>
+          <div class="actions">
+            ${op.status === 'running'
+              ? `<button class="btn btn-warning" type="button" data-id="${op.id}" data-action="pause">⏸ Pausar</button>`
+              : `<button class="btn btn-success" type="button" data-id="${op.id}" data-action="start">▶ Iniciar</button>`}
+            <button class="btn btn-ghost" type="button" data-id="${op.id}" data-action="reset">↺ Reiniciar</button>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+      grid.querySelectorAll('[data-field]').forEach(el => {
+        el.addEventListener('change', onFieldChange);
+        el.addEventListener('blur', onFieldChange);
+      });
+      grid.querySelectorAll('[data-action]').forEach(el => {
+        el.addEventListener('click', onAction);
+      });
+    }
+    function renderHistory() {
+      const list = document.getElementById('history-list');
+      if (history.length === 0) {
+        list.innerHTML = `<div class="empty"><p>Aún no hay registros en el historial.</p>
+          <p style="font-size:0.9rem">Cuando un receso se venza, aparecerá aquí.</p></div>`;
+        return;
+      }
+      list.innerHTML = history.map(h => `
+        <div class="history-item">
+          <div>
+            <div class="hi-name">${escapeHtml(h.name)}</div>
+            <div class="hi-meta">
+              ${h.startedAt ? 'Inicio: ' + formatDateTime(h.startedAt) + ' · ' : ''}
+              Fin: ${formatDateTime(h.endedAt)}
+            </div>
+          </div>
+          <div class="hi-duration">${formatTime(h.totalSeconds)}</div>
+        </div>
+      `).join('');
+    }
+    function updateOverlay() {
+      const expired = operators.filter(o => o.status === 'expired');
+      const overlay = document.getElementById('overlay');
+      const namesEl = document.getElementById('overlay-names');
+      if (expired.length > 0) {
+        namesEl.textContent = expired.map(o => o.name || 'Sin nombre').join('  ·  ');
+        overlay.classList.add('show');
+        startAlarm();
+        notifyAllExpired();
+      } else {
+        overlay.classList.remove('show');
+        stopAlarm();
+      }
+    }
+
+    // ---------- ACTIONS ----------
+    function addOperator() {
+      const total = getDefaultSeconds() || 15 * 60;
+      operators.push({
+        id: nextId++,
+        name: `Operador ${operators.length + 1}`,
+        totalSeconds: total,
+        remaining: total,
+        status: 'idle',
+        endAt: null,
+        startedAt: null,
+        targetTime: ''
+      });
+      render();
+    }
+    function onFieldChange(e) {
+      const id = parseInt(e.target.dataset.id, 10);
+      const field = e.target.dataset.field;
+      const op = operators.find(o => o.id === id);
+      if (!op) return;
+      if (field === 'name') {
+        op.name = e.target.value.trim() || `Operador ${id}`;
+        save();
+        return;
+      }
+      if (field === 'targetTime') {
+        op.targetTime = e.target.value || '';
+        save();
+        const card = e.target.closest('.card');
+        const endEl = card?.querySelector('.end-time');
+        if (endEl && op.status === 'idle') {
+          endEl.textContent = op.targetTime
+            ? 'Inicia a las ' + op.targetTime + ' · dura ' + formatTime(op.totalSeconds || 0)
+            : 'Duración total: ' + formatTime(op.totalSeconds);
+        }
+        return;
+      }
+      const card = e.target.closest('.card');
+      const minEl = card.querySelector('[data-field="minutes"]');
+      const secEl = card.querySelector('[data-field="seconds"]');
+      let mins = Math.max(0, parseInt(minEl.value, 10) || 0);
+      let secs = Math.max(0, parseInt(secEl.value, 10) || 0);
+      if (secs > 59) { secs = 59; secEl.value = 59; }
+      const newRemaining = mins * 60 + secs;
+      if (op.status === 'running') {
+        op.remaining = newRemaining;
+        op.endAt = Date.now() + newRemaining * 1000;
+        if (newRemaining <= 0) {
+          op.remaining = 0; op.status = 'expired'; op.endAt = null;
+          addToHistory(op);
+        }
+      } else if (op.status === 'expired') {
+        op.remaining = newRemaining;
+        op.totalSeconds = newRemaining || op.totalSeconds;
+        op.status = newRemaining > 0 ? 'idle' : 'expired';
+        op.endAt = null;
+      } else {
+        op.remaining = newRemaining;
+        op.totalSeconds = newRemaining;
+        op.endAt = null;
+      }
+      render();
+    }
+    function clockTimeToday(hhmm) {
+      if (!hhmm || !/^\d{1,2}:\d{2}$/.test(hhmm)) return null;
+      const [h, m] = hhmm.split(':').map(Number);
+      if (h > 23 || m > 59) return null;
+      const d = new Date();
+      d.setHours(h, m, 0, 0);
+      return d.getTime();
+    }
+    function onAction(e) {
+      const btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      const id = parseInt(btn.dataset.id, 10);
+      const action = btn.dataset.action;
+      const op = operators.find(o => o.id === id);
+      if (!op) return;
+      if (action === 'delete') operators = operators.filter(o => o.id !== id);
+      else if (action === 'start') startOp(op);
+      else if (action === 'pause') pauseOp(op);
+      else if (action === 'reset') resetOp(op);
+      render();
+    }
+    function startOp(op) {
+      if (op.status === 'running') return;
+      let duration = op.totalSeconds;
+      if (!duration || duration <= 0) {
+        duration = getDefaultSeconds() || 30 * 60;
+        op.totalSeconds = duration;
+      }
+      let rem, endAt;
+      if (op.targetTime) {
+        const startTs = clockTimeToday(op.targetTime);
+        if (startTs === null) { alert('Hora de inicio no válida. Usa formato HH:MM (ej. 22:12).'); return; }
+        endAt = startTs + duration * 1000;
+        const now = Date.now();
+        if (now >= endAt) {
+          op.remaining = 0; op.status = 'expired'; op.endAt = null;
+          op.startedAt = startTs;
+          addToHistory(op);
+          return;
+        }
+        rem = Math.ceil((endAt - now) / 1000);
+      } else {
+        rem = op.remaining > 0 ? op.remaining : duration;
+        endAt = Date.now() + rem * 1000;
+      }
+      op.remaining = rem;
+      op.status = 'running';
+      op.startedAt = op.targetTime ? clockTimeToday(op.targetTime) : Date.now();
+      op.endAt = endAt;
+    }
+    function pauseOp(op) {
+      if (op.status !== 'running') return;
+      op.remaining = getRemaining(op);
+      op.status = 'idle';
+      op.endAt = null;
+    }
+    function resetOp(op) {
+      op.remaining = op.totalSeconds || getDefaultSeconds() || 0;
+      op.status = 'idle';
+      op.endAt = null;
+      op.startedAt = null;
+    }
+
+    // ---------- GLOBAL (protegido) ----------
+    function requireEdit(fn){
+      return (...args) => {
+        if(!isEditing()){
+          alert('Modo solo lectura. Desbloquea la edición con la contraseña en el portal.');
+          window.location.href = 'index.html';
+          return;
+        }
+        return fn(...args);
+      };
+    }
+    document.getElementById('btn-add').addEventListener('click', requireEdit(addOperator));
+    document.getElementById('btn-start-all').addEventListener('click', requireEdit(() => {
+      operators.forEach(op => { if (op.status !== 'running' && op.status !== 'expired') startOp(op); });
+      render();
+    }));
+    document.getElementById('btn-reset-all').addEventListener('click', requireEdit(() => {
+      if (!confirm('¿Reiniciar todos los operadores al tiempo original?')) return;
+      operators.forEach(resetOp);
+      render();
+    }));
+    document.getElementById('btn-clear').addEventListener('click', requireEdit(() => {
+      if (!confirm('¿Borrar TODOS los operadores y el historial?\nEsta acción no se puede deshacer.')) return;
+      operators = []; history = []; nextId = 1; notifiedIds.clear();
+      stopAlarm();
+      render();
+    }));
+    document.getElementById('btn-notif').addEventListener('click', () => {
+      requestNotificationPermission().then(ok => {
+        if (ok) {
+          try {
+            const n = new Notification('Notificaciones activadas', {
+              body: 'Recibirás un aviso cuando se venza el tiempo de un receso.',
+              tag: 'test-notif'
+            });
+            setTimeout(() => n.close(), 4000);
+          } catch (e) {}
+        }
+      });
+    });
+    document.getElementById('btn-ack').addEventListener('click', () => {
+      operators.forEach(op => {
+        if (op.status === 'expired') {
+          op.status = 'idle';
+          op.remaining = op.totalSeconds;
+          op.endAt = null;
+          op.startedAt = null;
+        }
+      });
+      notifiedIds.clear();
+      stopAlarm();
+      render();
+    });
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        const which = tab.dataset.tab;
+        document.getElementById('panel-operators').style.display = which === 'operators' ? 'block' : 'none';
+        document.getElementById('panel-history').classList.toggle('visible', which === 'history');
+      });
+    });
+    document.getElementById('default-min').addEventListener('change', save);
+    document.getElementById('default-sec').addEventListener('change', save);
+    document.body.addEventListener('click', () => initAudio(), { once: true });
+
+    // ---------- INIT ----------
+    if (!load()) {
+      const total = 15 * 60;
+      operators = [
+        { id: nextId++, name: 'Operador 1', totalSeconds: total, remaining: total, status: 'idle', endAt: null, startedAt: null, targetTime: '' },
+        { id: nextId++, name: 'Operador 2', totalSeconds: total, remaining: total, status: 'idle', endAt: null, startedAt: null, targetTime: '' }
+      ];
+    }
+    render();
+    startGlobalTick();
+    updateNotifButton();
+
+    window.addEventListener('beforeunload', save);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') save();
+      if (document.visibilityState === 'visible') {
+        operators.forEach(op => {
+          if (op.status === 'running' && op.endAt) {
+            const rem = Math.ceil((op.endAt - Date.now()) / 1000);
+            if (rem <= 0) {
+              op.remaining = 0; op.status = 'expired'; op.endAt = null;
+              addToHistory(op, true);
+            } else { op.remaining = rem; }
+          }
+        });
+        render();
+      }
+    });
+  </script>
+</body>
+</html>
